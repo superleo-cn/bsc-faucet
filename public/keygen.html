@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>密钥生成 - BSC Faucet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; margin: 2rem; max-width: 720px; }
+    h1 { font-size: 1.5rem; }
+    button { padding: .6rem 1rem; font-size: 1rem; cursor: pointer; }
+    pre { background:#1113; padding:1rem; border-radius:6px; overflow:auto; }
+    .warn { color:#c00; font-weight:600; }
+    .hint { font-size:.85rem; opacity:.75; }
+    .pair { margin-top:1rem; }
+    input[type=text] { width:100%; font-family:ui-monospace,monospace; padding:.4rem; }
+  </style>
+</head>
+<body>
+  <h1>生成新的 BSC (EVM) 地址</h1>
+  <p class="warn">此功能在浏览器本地生成，不会上传。请自行安全保存私钥；丢失无法找回。不要将测试私钥用于主网资产。</p>
+  <button id="genBtn">生成密钥对</button>
+  <div id="result" class="pair" hidden>
+    <h2>结果</h2>
+    <label>地址 (Address)</label>
+    <input id="addr" type="text" readonly />
+    <label>私钥 (Private Key)</label>
+    <input id="pk" type="text" readonly />
+    <p class="hint">可复制加入 .env: <code>PRIVATE_KEY=这里粘贴</code></p>
+    <button id="copyEnv">复制为 .env 行</button>
+    <pre id="json"></pre>
+  </div>
+  <p><a href="/">返回领取页面</a></p>
+  <script type="module">
+    // 使用动态 import 而不是插入 <script>，更可靠。
+    async function loadSecp() {
+      if (!window.nobleSecp256k1) {
+        try {
+          const secp = await import('https://cdn.jsdelivr.net/npm/@noble/secp256k1@2.1.0/+esm');
+          window.nobleSecp256k1 = secp;
+        } catch (e) {
+          throw new Error('加载 secp256k1 失败: ' + e);
+        }
+      }
+    }
+
+    let keccakHashFn = null;
+    async function loadKeccak() {
+      if (keccakHashFn) return;
+      // 优先使用 noble-hashes (轻量 ESM)
+      try {
+        const m = await import('https://cdn.jsdelivr.net/npm/@noble/hashes@1.4.0/sha3/+esm');
+        // m.keccak_256(data) -> Uint8Array
+        keccakHashFn = (data) => m.keccak_256.create().update(data).digest();
+        return;
+      } catch (e) {
+        console.warn('noble-hashes 加载失败, fallback 到 js-sha3', e);
+      }
+      // 回退 js-sha3
+      try {
+        const m2 = await import('https://cdn.jsdelivr.net/npm/js-sha3@0.9.3/+esm');
+        // m2.keccak_256(data) 返回 hex 字符串
+        keccakHashFn = (data) => {
+          const hex = m2.keccak_256(data);
+            return new Uint8Array(hex.match(/.{2}/g).map(h=>parseInt(h,16)));
+        };
+      } catch (e2) {
+        throw new Error('无法加载 keccak 实现: ' + e2);
+      }
+    }
+
+    function toHex(uint8) { return '0x' + Array.from(uint8).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+    async function gen() {
+      await loadSecp();
+  await loadKeccak();
+      const secp = window.nobleSecp256k1;
+  if (!secp) throw new Error('secp 未加载');
+  if (!keccakHashFn) throw new Error('keccak 未加载');
+      const priv = crypto.getRandomValues(new Uint8Array(32));
+      const privHex = toHex(priv);
+      const pub = secp.getPublicKey(priv, false).slice(1);
+  const hash = keccakHashFn(pub);
+  const addr = '0x' + Array.from(hash.slice(-20)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      return { address: addr, privateKey: privHex };
+    }
+
+    const q = (id) => document.getElementById(id);
+    const btn = q('genBtn');
+    const resultDiv = q('result');
+    const addrInput = q('addr');
+    const pkInput = q('pk');
+    const jsonPre = q('json');
+    const copyBtn = q('copyEnv');
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = '生成中...';
+      jsonPre.textContent = '';
+      try {
+        const pair = await gen();
+        addrInput.value = pair.address;
+        pkInput.value = pair.privateKey;
+        jsonPre.textContent = JSON.stringify(pair, null, 2);
+        resultDiv.hidden = false;
+      } catch (e) {
+        alert(e.message || e);
+      } finally {
+        btn.disabled = false; btn.textContent = '生成密钥对';
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      if (!pkInput.value) return;
+      const line = 'PRIVATE_KEY=' + pkInput.value + '\n';
+      navigator.clipboard.writeText(line).then(()=>{
+        copyBtn.textContent = '已复制';
+        setTimeout(()=> copyBtn.textContent = '复制为 .env 行', 1500);
+      });
+    });
+  </script>
+</body>
+</html>
