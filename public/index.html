@@ -73,7 +73,22 @@
         const json = await r.json();
         if (r.status === 201) {
           statusBox.className = 'log success';
-          statusBox.textContent = '成功: txHash=' + json.txHash + '\namount=' + json.amount;
+          const dec = json.decimals || 18;
+            let human;
+            try {
+              const raw = BigInt(json.amount);
+              // format: keep up to 6 decimals but trim trailing zeros
+              const factor = 10n ** BigInt(dec);
+              const whole = raw / factor;
+              const frac = raw % factor;
+              if (frac === 0n) {
+                human = whole.toString();
+              } else {
+                const fracStr = (frac + factor).toString().slice(1).padStart(dec,'0').replace(/0+$/,'');
+                human = whole.toString() + '.' + fracStr.slice(0, Math.min(6, fracStr.length));
+              }
+            } catch { human = json.amountTokens?.toString() || '?'; }
+          statusBox.textContent = '成功: txHash=' + json.txHash + '\namount=' + human + ' (原始: ' + json.amount + ')';
         } else if (r.status === 429 && json.error === 'cooldown') {
           const remainSec = Math.round((json.remainingMs || 0)/1000);
             statusBox.className = 'log error';
