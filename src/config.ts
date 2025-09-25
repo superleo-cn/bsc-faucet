@@ -11,12 +11,27 @@ export interface ChainConfig {
   chainId: number;
 }
 
+export interface BridgeConfig {
+  bsc: {
+    chainId: number;
+    rpcUrls: string[];
+    bridge: `0x${string}`;
+    usdt: `0x${string}`;
+  };
+  socchain: {
+    chainId: number;
+    rpcUrl: string;
+    bridge: `0x${string}`;
+  };
+}
+
 export interface AppConfig {
   port: number;
   rateLimitPerIp: number;
   enableMetrics: boolean;
   bsc: ChainConfig;
   socchain: ChainConfig;
+  bridge: BridgeConfig;
 }
 
 function envInt(name: string, def: number): number {
@@ -72,6 +87,24 @@ export const config: AppConfig = {
     tokenDecimals: socchainTokenDecimals,
     cooldownHours: envInt('SOCCHAIN_COOLDOWN_HOURS', 24),
     chainId: envInt('SOCCHAIN_CHAIN_ID', 1001) // 需要用户提供SOCCHAIN的链ID
+  },
+  bridge: {
+    bsc: {
+      chainId: envInt('BRIDGE_BSC_CHAIN_ID', 56), // BSC 主网
+      rpcUrls: [
+        process.env.BRIDGE_BSC_RPC_URL || 'https://binance.llamarpc.com/',
+        'https://rpc.ankr.com/bsc',
+        'https://bsc.blockpi.network/v1/rpc/public',
+        'https://bsc.rpc.blxrbdn.com'
+      ],
+      bridge: process.env.BRIDGE_BSC_CONTRACT as `0x${string}` || '0x999e2fa15d9850dB9EcEAeD264048e7646a538f7',
+      usdt: process.env.BRIDGE_BSC_USDT_CONTRACT as `0x${string}` || '0xDDF4b7938B4379301690fc2C7DC898B9084a4826'
+    },
+    socchain: {
+      chainId: envInt('BRIDGE_SOCCHAIN_CHAIN_ID', 108848), // SOCCHAIN ID
+      rpcUrl: process.env.BRIDGE_SOCCHAIN_RPC_URL || 'https://node0.socchian.top',
+      bridge: process.env.BRIDGE_SOCCHAIN_CONTRACT as `0x${string}` || '0xDDF4b7938B4379301690fc2C7DC898B9084a4826'
+    }
   }
 };
 

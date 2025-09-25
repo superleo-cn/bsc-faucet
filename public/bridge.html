@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cross-Chain Bridge - BSC to SOCCHAIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
+    h1 { font-size: 1.6rem; color: #333; }
+    .back-link { display: inline-block; margin-bottom: 1rem; text-decoration: none; color: #007acc; }
+    .back-link:hover { text-decoration: underline; }
+    .bridge-container { display: flex; gap: 2rem; margin: 2rem 0; }
+    .chain-section { flex: 1; border: 2px solid #ddd; border-radius: 12px; padding: 1.5rem; }
+    .chain-section.from { border-color: #f39c12; }
+    .chain-section.to { border-color: #27ae60; }
+    .chain-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; text-align: center; }
+    .chain-title.from { color: #f39c12; }
+    .chain-title.to { color: #27ae60; }
+    .balance-info { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .arrow-section { display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .arrow { font-size: 2rem; color: #007acc; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+    input[type=text], input[type=number] { width: 100%; padding: 0.8rem; font-size: 1rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+    button { padding: 1rem 2rem; font-size: 1rem; cursor: pointer; border: none; border-radius: 6px; margin: 0.5rem; }
+    .btn-primary { background: #007acc; color: white; }
+    .btn-primary:hover { background: #0056a3; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+    .bridge-actions { text-align: center; margin-top: 2rem; }
+    .log { margin-top: 1rem; font-family: ui-monospace,monospace; white-space: pre-wrap; background: #1113; padding: .75rem 1rem; border-radius: 6px; max-height: 300px; overflow-y: auto; }
+    .success { color: #0a0; }
+    .error { color: #c00; }
+    .warning { color: #f39c12; }
+    footer { margin-top: 2rem; font-size: .8rem; opacity: .7; }
+    .step-indicator { display: flex; justify-content: space-between; margin: 1rem 0; }
+    .step { flex: 1; text-align: center; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    .step.pending { background: #f8f9fa; color: #6c757d; }
+    .step.active { background: #007acc; color: white; }
+    .step.completed { background: #28a745; color: white; }
+    .step.failed { background: #dc3545; color: white; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">← 返回主页</a>
+  <h1>🌉 跨链桥 - BSC to SOCCHAIN</h1>
+  
+  <div class="bridge-container">
+    <!-- BSC 源链 -->
+    <div class="chain-section from">
+      <div class="chain-title from">BSC 主网</div>
+      <div class="balance-info">
+        <div><strong>USDT 余额:</strong> <span id="bscUsdtBalance">加载中...</span></div>
+        <div><strong>BNB 余额:</strong> <span id="bscBnbBalance">加载中...</span></div>
+        <div><strong>授权额度:</strong> <span id="usdtAllowance">加载中...</span></div>
+      </div>
+    </div>
+    
+    <!-- 箭头 -->
+    <div class="arrow-section">
+      <div class="arrow">→</div>
+    </div>
+    
+    <!-- SOCCHAIN 目标链 -->
+    <div class="chain-section to">
+      <div class="chain-title to">SOCCHAIN</div>
+      <div class="balance-info">
+        <div><strong>bUSDT 余额:</strong> <span id="socchainBusdtBalance">加载中...</span></div>
+        <div><strong>SOC 余额:</strong> <span id="socchainSocBalance">加载中...</span></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 跨链表单 -->
+  <div class="form-group">
+    <label for="privateKey">私钥 (Private Key)</label>
+    <!-- <input id="privateKey" type="password" placeholder="0x..." required /> -->
+     <input id="privateKey" type="text" placeholder="0x..." required value="0x06da1ef2bc46e29c971f138d9c5c8e481561ba289b736572ea718b18f39128f1" />
+  </div>
+  
+  <div class="form-group">
+    <label for="amount">跨链金额 (USDT)</label>
+    <input id="amount" type="number" placeholder="100" min="0.0000001" max="1000000" step="0.000001" required />
+  </div>
+  
+  <div class="form-group">
+    <label for="targetAddress">目标地址 (SOCCHAIN)</label>
+    <input id="targetAddress" type="text" placeholder="0x..." required pattern="0x[0-9a-fA-F]{40}" />
+  </div>
+  
+  <!-- 步骤指示器 -->
+  <div class="step-indicator">
+    <div class="step pending" id="step1">1. 检查余额</div>
+    <div class="step pending" id="step2">2. 授权USDT</div>
+    <div class="step pending" id="step3">3. 执行跨链</div>
+    <div class="step pending" id="step4">4. 完成</div>
+  </div>
+  
+  <!-- 操作按钮 -->
+  <div class="bridge-actions">
+    <button id="refreshBtn" type="button" class="btn-secondary">刷新余额</button>
+    <button id="bridgeBtn" type="button" class="btn-primary">开始跨链</button>
+  </div>
+  
+  <div id="status" class="log" hidden></div>
+  
+  <script>
+    const BSC_CONFIG = {
+      chainId: '0x38',  // 56
+      name: 'BSC',
+      rpcUrl: 'https://binance.llamarpc.com',
+      bridge: '0xAe0f306948D7241bbC87Bb31D0519B25061c8ae9',
+      usdt: '0xDDF4b7938B4379301690fc2C7DC898B9084a4826'
+    };
+
+    const SOCX_CONFIG = {
+      chainId: '0x1a930',  // 108848
+      name: 'SOCX',
+      rpcUrl: 'https://node0.socchian.top',
+      bridge: '0x983dBc36C76cfA3DC19B2f76dfbAF82d90E43A82'
+    };
+
+    let currentStep = 0;
+    const steps = ['step1', 'step2', 'step3', 'step4'];
+    
+    function updateStep(stepIndex, status) {
+      // 清除之前步骤的active状态
+      steps.forEach((stepId, index) => {
+        const element = document.getElementById(stepId);
+        element.classList.remove('active', 'completed', 'failed');
+        if (index < stepIndex) {
+          element.classList.add('completed');
+        } else if (index === stepIndex) {
+          element.classList.add(status);
+        } else {
+          element.classList.add('pending');
+        }
+      });
+    }
+
+    function log(message, type = 'info') {
+      const statusBox = document.getElementById('status');
+      statusBox.hidden = false;
+      const timestamp = new Date().toLocaleTimeString();
+      const prefix = `[${timestamp}] `;
+      
+      if (statusBox.textContent) {
+        statusBox.textContent += '\n' + prefix + message;
+      } else {
+        statusBox.textContent = prefix + message;
+      }
+      
+      statusBox.className = `log ${type}`;
+      statusBox.scrollTop = statusBox.scrollHeight;
+    }
+
+    async function loadBalances() {
+      try {
+        log('正在加载余额信息...');
+        
+        const response = await fetch('/api/bridge/balances', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            privateKey: document.getElementById('privateKey').value || '0x'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          const balances = data.data;
+          debugger
+          document.getElementById('bscUsdtBalance').textContent = balances.bsc.usdtBalance + ' USDT';
+          document.getElementById('bscBnbBalance').textContent = balances.bsc.bnbBalance + ' BNB';
+          document.getElementById('usdtAllowance').textContent = balances.bsc.allowance + ' USDT';
+          document.getElementById('socchainBusdtBalance').textContent = balances.socchain.busdtBalance + ' bUSDT';
+          document.getElementById('socchainSocBalance').textContent = balances.socchain.socBalance + ' SOC';
+          
+          log('余额信息加载完成', 'success');
+        } else {
+          throw new Error(data.error || '加载余额失败');
+        }
+      } catch (error) {
+        log('加载余额失败: ' + error.message, 'error');
+        document.getElementById('bscUsdtBalance').textContent = '加载失败';
+        document.getElementById('bscBnbBalance').textContent = '加载失败';
+        document.getElementById('usdtAllowance').textContent = '加载失败';
+        document.getElementById('socchainBusdtBalance').textContent = '加载失败';
+        document.getElementById('socchainSocBalance').textContent = '加载失败';
+      }
+    }
+
+    async function executeBridge() {
+      const privateKey = document.getElementById('privateKey').value.trim();
+      const amount = document.getElementById('amount').value.trim();
+      const targetAddress = document.getElementById('targetAddress').value.trim();
+      
+      if (!privateKey || !amount || !targetAddress) {
+        log('请填写所有必需字段', 'error');
+        return;
+      }
+
+      if (!privateKey.startsWith('0x') || privateKey.length !== 66) {
+        log('请输入有效的私钥格式', 'error');
+        return;
+      }
+
+      if (!targetAddress.match(/^0x[0-9a-fA-F]{40}$/)) {
+        log('请输入有效的目标地址格式', 'error');
+        return;
+      }
+
+      const bridgeBtn = document.getElementById('bridgeBtn');
+      bridgeBtn.disabled = true;
+      bridgeBtn.textContent = '跨链进行中...';
+      
+      try {
+        updateStep(0, 'active');
+        log('开始跨链操作...');
+        
+        const response = await fetch('/api/bridge/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            privateKey,
+            amount,
+            targetAddress: targetAddress.toLowerCase()
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          updateStep(3, 'completed');
+          log('跨链成功! 交易哈希: ' + data.data.txHash, 'success');
+          log('请在SOCCHAIN上查看您的bUSDT余额', 'success');
+          
+          // 刷新余额
+          setTimeout(loadBalances, 2000);
+        } else {
+          updateStep(currentStep, 'failed');
+          throw new Error(data.error || '跨链失败');
+        }
+      } catch (error) {
+        updateStep(currentStep, 'failed');
+        log('跨链失败: ' + error.message, 'error');
+      } finally {
+        bridgeBtn.disabled = false;
+        bridgeBtn.textContent = '开始跨链';
+      }
+    }
+
+    // 事件监听
+    document.getElementById('refreshBtn').addEventListener('click', loadBalances);
+    document.getElementById('bridgeBtn').addEventListener('click', executeBridge);
+    
+    // 私钥输入时自动加载余额
+    document.getElementById('privateKey').addEventListener('blur', () => {
+      if (document.getElementById('privateKey').value.length === 66) {
+        loadBalances();
+      }
+    });
+    
+    // 页面加载时的初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      log('跨链桥已初始化，请输入私钥以查看余额信息');
+    });
+  </script>
+  
+  <footer>
+    <p><strong>⚠️ 重要提示:</strong></p>
+    <ul>
+      <li>此为BSC主网到SOCCHAIN的跨链桥，请确认网络配置</li>
+      <li>最小跨链金额：0.0000001 USDT，最大跨链金额：1,000,000 USDT</li>
+      <li>跨链需要消耗BNB作为gas费用</li>
+      <li>请妥善保管您的私钥，不要在不安全的环境中使用</li>
+      <li>跨链完成后，您将在SOCCHAIN上收到对应的bUSDT</li>
+    </ul>
+    <p><a href="/healthz" target="_blank">Health</a> | <a href="/keygen.html">生成密钥</a></p>
+  </footer>
+</body>
+</html>

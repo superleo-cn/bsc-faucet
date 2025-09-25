@@ -5,6 +5,7 @@ import pino from 'pino';
 import { config } from './config.js';
 import { claimRouter } from './routes/claim.js';
 import { socchainClaimRouter } from './routes/socchain-claim.js';
+import bridgeRouter from './routes/bridge.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { ipRateLimit } from './middlewares/rateLimit.js';
 import { register, collectDefaultMetrics, Gauge } from 'prom-client';
@@ -31,6 +32,7 @@ app.use(ipRateLimit);
 
 app.use('/claim', claimRouter);
 app.use('/socchain/claim', socchainClaimRouter);
+app.use('/api/bridge', bridgeRouter);
 
 app.get('/healthz', async (_req: Request, res: Response) => {
   try {
