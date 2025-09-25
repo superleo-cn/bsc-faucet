@@ -38,7 +38,7 @@ export interface ClaimRow {
 
 export function getLastSuccess(address: string): ClaimRow | undefined {
   const stmt = db.prepare(`SELECT * FROM claims WHERE address = ? AND status = 'SUCCESS' ORDER BY claimed_at DESC LIMIT 1`);
-  return stmt.get(address);
+  return stmt.get(address) as ClaimRow | undefined;
 }
 
 export function insertClaim(record: Omit<ClaimRow, 'id'>): number {

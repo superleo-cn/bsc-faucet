@@ -4,20 +4,20 @@ import { bscTestnet, bsc } from 'viem/chains';
 import { config } from '../config.js';
 
 // Dynamic chain selection (simple switch for now)
-const chain = config.chainId === 56 ? bsc : bscTestnet;
+const chain = config.bsc.chainId === 56 ? bsc : bscTestnet;
 
 // Create a viem Account object from private key (strongly typed)
-export const account = privateKeyToAccount(config.privateKey);
+export const account = privateKeyToAccount(config.bsc.privateKey);
 
 const walletClient = createWalletClient({
   chain,
-  transport: http(config.rpcUrl),
+  transport: http(config.bsc.rpcUrl),
   account
 });
 
 export const publicClient = createPublicClient({
   chain,
-  transport: http(config.rpcUrl)
+  transport: http(config.bsc.rpcUrl)
 });
 
 const erc20TransferAbi = [{
@@ -48,14 +48,14 @@ async function ensureTokenMetadata(address: Address) {
   }
   try {
     const [decimals, symbol] = await Promise.all([
-      publicClient.readContract({ address, abi: erc20MetaAbi as any, functionName: 'decimals' }) as Promise<number>,
-      publicClient.readContract({ address, abi: erc20MetaAbi as any, functionName: 'symbol' }) as Promise<string>
+      publicClient.readContract({ address, abi: erc20MetaAbi as any, functionName: 'decimals', args: [] }) as Promise<number>,
+      publicClient.readContract({ address, abi: erc20MetaAbi as any, functionName: 'symbol', args: [] }) as Promise<string>
     ]);
     tokenDecimalsCache = decimals;
     tokenSymbolCache = symbol;
   } catch (e) {
     // fallback to config value
-    tokenDecimalsCache = config.tokenDecimals;
+    tokenDecimalsCache = config.bsc.tokenDecimals;
   }
   return { decimals: tokenDecimalsCache!, symbol: tokenSymbolCache };
 }
@@ -64,19 +64,19 @@ export async function sendTokens(to: Address, amount: bigint): Promise<string> {
   // Verify chain id matches expectation (helpful debug)
   try {
     const currentChainId = await publicClient.getChainId();
-    if (currentChainId !== config.chainId) {
-      console.warn(`ChainId mismatch: config=${config.chainId} node=${currentChainId}`);
+    if (currentChainId !== config.bsc.chainId) {
+      console.warn(`ChainId mismatch: config=${config.bsc.chainId} node=${currentChainId}`);
     }
   } catch {/* ignore */}
 
-  if (config.tokenContract) {
-    const tokenAddr = config.tokenContract as Address;
+  if (config.bsc.tokenContract) {
+    const tokenAddr = config.bsc.tokenContract as Address;
     const { decimals } = await ensureTokenMetadata(tokenAddr);
     // If config.claimAmount was computed with a different decimals than on-chain, adjust.
     let onChainAmount = amount;
-    if (decimals !== config.tokenDecimals) {
+    if (decimals !== config.bsc.tokenDecimals) {
       // Recalculate using human tokens base.
-      onChainAmount = BigInt(Math.trunc(config.claimAmountTokens * 10 ** decimals));
+      onChainAmount = BigInt(Math.trunc(config.bsc.claimAmountTokens * 10 ** decimals));
     }
     const data = encodeFunctionData({
       abi: erc20TransferAbi as any,

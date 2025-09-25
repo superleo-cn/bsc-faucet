@@ -2,110 +2,51 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>BSC Faucet</title>
+  <title>Multi-Chain Faucet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: light dark; }
-  body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; }
-    form { display: flex; gap: .5rem; flex-wrap: wrap; }
-    input[type=text] { flex: 1 1 360px; padding: .6rem; font-size: 1rem; }
-    button { padding: .6rem 1.2rem; font-size: 1rem; cursor: pointer; }
-    .log { margin-top: 1rem; font-family: ui-monospace,monospace; white-space: pre-wrap; background: #1113; padding: .75rem 1rem; border-radius: 6px; }
-    footer { margin-top: 2rem; font-size: .8rem; opacity: .7; }
-    .success { color: #0a0; }
-    .error { color: #c00; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
+    h1 { font-size: 1.6rem; text-align: center; }
+    h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+    .chain-selector { display: flex; gap: 2rem; justify-content: center; margin: 2rem 0; }
+    .chain-option { 
+      text-decoration: none; 
+      color: inherit; 
+      padding: 2rem; 
+      border: 2px solid #ddd; 
+      border-radius: 12px; 
+      text-align: center; 
+      transition: all 0.3s ease;
+      display: block;
+      min-width: 200px;
+    }
+    .chain-option:hover { 
+      border-color: #007acc; 
+      background-color: #f8f9fa; 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .chain-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 0.5rem; }
+    .chain-desc { color: #666; font-size: 0.9rem; }
+    footer { margin-top: 2rem; font-size: .8rem; opacity: .7; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>BSC Faucet</h1>
-  <section id="balances" style="margin:1rem 0;padding:.75rem 1rem;border:1px solid #9993;border-radius:6px;font-size:.9rem;line-height:1.4">
-    <strong>Faucet 余额</strong>
-    <div id="balanceNative">BNB: 加载中...</div>
-    <div id="balanceToken" style="margin-top:.25rem;">Token: 加载中...</div>
-    <button id="refreshBtn" type="button" style="margin-top:.5rem;">刷新</button>
-  </section>
-  <p>输入你的 BSC 地址领取测试币。每个地址 24 小时只能领取一次。</p>
-  <form id="claimForm">
-    <input id="address" type="text" placeholder="0x..." required pattern="0x[0-9a-fA-F]{40}" />
-    <button type="submit">领取 Claim</button>
-  </form>
-  <div id="status" class="log" hidden></div>
-  <script>
-    async function loadStatus() {
-      try {
-        const r = await fetch('/api/status');
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        const data = await r.json();
-        const native = BigInt(data.nativeBalance);
-        const nativeStr = (Number(native)/1e18).toFixed(6);
-        document.getElementById('balanceNative').textContent = 'BNB: ' + nativeStr;
-        if (data.token) {
-          if (data.token.balance) {
-            const dec = data.token.decimals || 18;
-            const bal = BigInt(data.token.balance);
-            const human = Number(bal) / 10 ** dec;
-            document.getElementById('balanceToken').textContent = 'Token('+ data.token.address.slice(0,6)+'...'+data.token.address.slice(-4)+'): ' + human.toFixed(4);
-          } else {
-            document.getElementById('balanceToken').textContent = 'Token: 无余额或读取失败';
-          }
-        } else {
-          document.getElementById('balanceToken').textContent = '未配置代币';
-        }
-      } catch(err){
-        document.getElementById('balanceNative').textContent = 'BNB: 读取失败';
-        document.getElementById('balanceToken').textContent = 'Token: 读取失败';
-      }
-    }
-    document.getElementById('refreshBtn').addEventListener('click', loadStatus);
-    loadStatus();
-    setInterval(loadStatus, 30000);
-    const form = document.getElementById('claimForm');
-    const statusBox = document.getElementById('status');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const address = document.getElementById('address').value.trim();
-      statusBox.hidden = false;
-      statusBox.textContent = '请求中...';
-      statusBox.className = 'log';
-      try {
-        const r = await fetch('/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
-        const json = await r.json();
-        if (r.status === 201) {
-          statusBox.className = 'log success';
-          const dec = json.decimals || 18;
-            let human;
-            try {
-              const raw = BigInt(json.amount);
-              // format: keep up to 6 decimals but trim trailing zeros
-              const factor = 10n ** BigInt(dec);
-              const whole = raw / factor;
-              const frac = raw % factor;
-              if (frac === 0n) {
-                human = whole.toString();
-              } else {
-                const fracStr = (frac + factor).toString().slice(1).padStart(dec,'0').replace(/0+$/,'');
-                human = whole.toString() + '.' + fracStr.slice(0, Math.min(6, fracStr.length));
-              }
-            } catch { human = json.amountTokens?.toString() || '?'; }
-          statusBox.textContent = '成功: txHash=' + json.txHash + '\namount=' + human + ' (原始: ' + json.amount + ')';
-        } else if (r.status === 429 && json.error === 'cooldown') {
-          const remainSec = Math.round((json.remainingMs || 0)/1000);
-            statusBox.className = 'log error';
-            statusBox.textContent = '冷却中, 剩余 ~' + remainSec + ' 秒';
-        } else if (r.status === 400) {
-          statusBox.className = 'log error';
-          statusBox.textContent = '地址无效';
-        } else {
-          statusBox.className = 'log error';
-          statusBox.textContent = '失败: ' + JSON.stringify(json);
-        }
-      } catch (err) {
-        statusBox.className = 'log error';
-        statusBox.textContent = '网络错误: ' + err;
-      }
-    });
-  </script>
+  <h1>Multi-Chain Faucet</h1>
+  <h2>选择要使用的区块链网络</h2>
+  
+  <div class="chain-selector">
+    <a href="/bsc.html" class="chain-option">
+      <div class="chain-title">BSC 链 (Privy上线后，废弃)</div>
+      <div class="chain-desc">领取 BSC TestUSD</div>
+    </a>
+    <a href="/socchain.html" class="chain-option">
+      <div class="chain-title">SOC CHAIN</div>
+      <div class="chain-desc">领取 SOC CHAIN TestUSD</div>
+    </a>
+  </div>
+  
   <footer>本页面仅用于测试。请勿输入生产私钥。 | <a href="/healthz" target="_blank">Health</a> | <a href="/keygen.html">生成密钥</a></footer>
 </body>
 </html>
