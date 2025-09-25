@@ -54,9 +54,27 @@ SOCCHAIN_CHAIN_ID=1001     # 您的SOCCHAIN链ID
 ```
 
 ## 数据库
-两个链共用同一个SQLite数据库，通过地址进行冷却时间管理。这意味着：
-- 同一地址在BSC链和SOCCHAIN上的冷却时间是独立的
-- 您可以同时在两个链上进行token分发
+数据库已升级为支持多链操作：
+- 增加了`chain`字段来区分不同的区块链网络
+- BSC链和SOCCHAIN的冷却时间现在是完全独立的
+- 同一地址可以在不同链上独立领取token
+- 数据库会自动迁移，无需手动干预
+
+### 数据库结构
+```sql
+CREATE TABLE claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  address TEXT NOT NULL,
+  chain TEXT NOT NULL DEFAULT 'bsc',  -- 新增字段
+  tx_hash TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  claimed_at INTEGER NOT NULL,
+  next_allowed_at INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  failure_reason TEXT,
+  ip TEXT
+);
+```
 
 ## 部署说明
 

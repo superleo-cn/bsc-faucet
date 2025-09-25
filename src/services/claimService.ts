@@ -32,7 +32,7 @@ export async function claimSocchain(addressRaw: string, ip?: string): Promise<Cl
 }
 
 async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig, chainType: 'bsc' | 'socchain'): Promise<ClaimResult> {
-  const last = getLastSuccess(address);
+  const last = getLastSuccess(address, chainType);
   const nowTs = now();
   if (last && last.next_allowed_at > nowTs) {
     return { status: 'cooldown', remainingMs: last.next_allowed_at - nowTs };
@@ -44,6 +44,7 @@ async function doClaim(address: string, ip: string | undefined, chainConfig: Cha
       : await sendTokensSocchain(address as any, chainConfig.claimAmount);
     insertClaim({
       address,
+      chain: chainType,
       tx_hash: txHash,
       amount: chainConfig.claimAmount.toString(),
       claimed_at: nowTs,
@@ -65,6 +66,7 @@ async function doClaim(address: string, ip: string | undefined, chainConfig: Cha
   } catch (e: any) {
     insertClaim({
       address,
+      chain: chainType,
       tx_hash: '0x0',
       amount: chainConfig.claimAmount.toString(),
       claimed_at: nowTs,
