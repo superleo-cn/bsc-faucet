@@ -86,7 +86,7 @@ export const config: AppConfig = {
     claimAmountTokens: socchainClaimAmountTokens,
     tokenDecimals: socchainTokenDecimals,
     cooldownHours: envInt('SOCCHAIN_COOLDOWN_HOURS', 24),
-    chainId: envInt('SOCCHAIN_CHAIN_ID', 1001) // 需要用户提供SOCCHAIN的链ID
+    chainId: envInt('SOCCHAIN_CHAIN_ID', 1111111) // 需要用户提供SOCCHAIN的链ID
   },
   bridge: {
     bsc: {
@@ -97,13 +97,13 @@ export const config: AppConfig = {
         'https://bsc.blockpi.network/v1/rpc/public',
         'https://bsc.rpc.blxrbdn.com'
       ],
-      bridge: process.env.BRIDGE_BSC_CONTRACT as `0x${string}` || '0x999e2fa15d9850dB9EcEAeD264048e7646a538f7',
+      bridge: process.env.BRIDGE_BSC_CONTRACT as `0x${string}` || '0xd14313064e3f5D3ECAb79BB387c6F4cc66Ef4f86',
       usdt: process.env.BRIDGE_BSC_USDT_CONTRACT as `0x${string}` || '0xDDF4b7938B4379301690fc2C7DC898B9084a4826'
     },
     socchain: {
-      chainId: envInt('BRIDGE_SOCCHAIN_CHAIN_ID', 108848), // SOCCHAIN ID
-      rpcUrl: process.env.BRIDGE_SOCCHAIN_RPC_URL || 'https://node0.socchian.top',
-      bridge: process.env.BRIDGE_SOCCHAIN_CONTRACT as `0x${string}` || '0xDDF4b7938B4379301690fc2C7DC898B9084a4826'
+      chainId: envInt('BRIDGE_SOCCHAIN_CHAIN_ID', 1111111), // SOCCHAIN ID
+      rpcUrl: process.env.BRIDGE_SOCCHAIN_RPC_URL || 'https://rpc-testnet.socrateschain.org',
+      bridge: process.env.BRIDGE_SOCCHAIN_CONTRACT as `0x${string}` || '0xd14313064e3f5D3ECAb79BB387c6F4cc66Ef4f86'
     }
   }
 };
