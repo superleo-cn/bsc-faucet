@@ -1,5 +1,4 @@
 import { publicClient, account } from './txSender.js';
-import { socchainPublicClient, socchainAccount } from './socchainTxSender.js';
 import { config } from '../config.js';
 import { type Address } from 'viem';
 
@@ -50,33 +49,3 @@ export async function getStatus() {
   };
 }
 
-export async function getSocchainStatus() {
-  const [chainId, nativeBalance] = await Promise.all([
-    socchainPublicClient.getChainId(),
-    socchainPublicClient.getBalance({ address: socchainAccount.address })
-  ]);
-
-  let tokenBalance: bigint | null = null;
-  let tokenDecimals: number | null = null;
-  if (config.socchain.tokenContract) {
-    try {
-      [tokenBalance, tokenDecimals] = await Promise.all([
-        socchainPublicClient.readContract({ address: config.socchain.tokenContract as Address, abi: erc20BalanceOf as any, functionName: 'balanceOf', args: [socchainAccount.address] }) as Promise<bigint>,
-        socchainPublicClient.readContract({ address: config.socchain.tokenContract as Address, abi: erc20Decimals as any, functionName: 'decimals', args: [] }) as Promise<number>
-      ]);
-    } catch (e) {
-      // ignore, maybe contract not found
-    }
-  }
-
-  return {
-    chainId,
-    faucetAddress: socchainAccount.address,
-    nativeBalance: nativeBalance.toString(),
-    token: config.socchain.tokenContract ? {
-      address: config.socchain.tokenContract,
-      balance: tokenBalance?.toString() || null,
-      decimals: tokenDecimals ?? config.socchain.tokenDecimals
-    } : null
-  };
-}

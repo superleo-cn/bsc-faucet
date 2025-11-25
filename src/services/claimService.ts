@@ -3,7 +3,6 @@ import { normalizeAddress } from '../utils/address.js';
 import { now, hours } from '../utils/time.js';
 import { config, ChainConfig } from '../config.js';
 import { sendTokens } from './txSender.js';
-import { sendTokensSocchain } from './socchainTxSender.js';
 import type { ClaimRecord } from '../models/ClaimRecord.js';
 
 interface ClaimResult {
@@ -13,25 +12,17 @@ interface ClaimResult {
 }
 
 const inFlight = new Map<string, Promise<ClaimResult>>();
-const inFlightSocchain = new Map<string, Promise<ClaimResult>>();
 
 export async function claim(addressRaw: string, ip?: string): Promise<ClaimResult> {
   const addr = normalizeAddress(addressRaw);
   if (inFlight.has(addr)) return inFlight.get(addr)!; // de-dupe concurrent
-  const p = doClaim(addr, ip, config.bsc, 'bsc').finally(() => { inFlight.delete(addr); });
+  const p = doClaim(addr, ip, config.bsc).finally(() => { inFlight.delete(addr); });
   inFlight.set(addr, p);
   return p;
 }
 
-export async function claimSocchain(addressRaw: string, ip?: string): Promise<ClaimResult> {
-  const addr = normalizeAddress(addressRaw);
-  if (inFlightSocchain.has(addr)) return inFlightSocchain.get(addr)!; // de-dupe concurrent
-  const p = doClaim(addr, ip, config.socchain, 'socchain').finally(() => { inFlightSocchain.delete(addr); });
-  inFlightSocchain.set(addr, p);
-  return p;
-}
-
-async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig, chainType: 'bsc' | 'socchain'): Promise<ClaimResult> {
+async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig): Promise<ClaimResult> {
+  const chainType = 'bsc';
   const last = getLastSuccess(address, chainType);
   const nowTs = now();
   if (last && last.next_allowed_at > nowTs) {
@@ -39,9 +30,7 @@ async function doClaim(address: string, ip: string | undefined, chainConfig: Cha
   }
   const nextAllowed = nowTs + hours(chainConfig.cooldownHours);
   try {
-    const txHash = chainType === 'bsc' 
-      ? await sendTokens(address as any, chainConfig.claimAmount)
-      : await sendTokensSocchain(address as any, chainConfig.claimAmount);
+    const txHash = await sendTokens(address as any, chainConfig.claimAmount);
     insertClaim({
       address,
       chain: chainType,

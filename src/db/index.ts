@@ -1,27 +1,43 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database } from 'sql.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const dbPath = path.join(process.cwd(), 'data');
 if (!fs.existsSync(dbPath)) fs.mkdirSync(dbPath);
 
-export const db = new Database(path.join(dbPath, 'faucet.db'));
+const dbFilePath = path.join(dbPath, 'faucet.db');
 
-db.pragma('journal_mode = WAL');
+let db: Database;
+
+// Initialize database
+const SQL = await initSqlJs();
+if (fs.existsSync(dbFilePath)) {
+  const buffer = fs.readFileSync(dbFilePath);
+  db = new SQL.Database(buffer);
+} else {
+  db = new SQL.Database();
+}
+
+// Auto-save database to file
+function saveDatabase() {
+  const data = db.export();
+  const buffer = Buffer.from(data);
+  fs.writeFileSync(dbFilePath, buffer);
+}
 
 // Migration: Add chain column if it doesn't exist
-const checkChainColumn = db.prepare(`PRAGMA table_info(claims)`);
-const columns = checkChainColumn.all() as Array<{name: string}>;
-const hasChainColumn = columns.some(col => col.name === 'chain');
+const checkChainColumn = db.exec(`PRAGMA table_info(claims)`);
+const hasChainColumn = checkChainColumn[0]?.values.some((row: any) => row[1] === 'chain');
 
-if (!hasChainColumn) {
+if (checkChainColumn[0] && !hasChainColumn) {
   console.log('Migrating database: adding chain column...');
-  db.exec(`ALTER TABLE claims ADD COLUMN chain TEXT NOT NULL DEFAULT 'bsc'`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_claims_address_chain ON claims(address, chain)`);
+  db.run(`ALTER TABLE claims ADD COLUMN chain TEXT NOT NULL DEFAULT 'bsc'`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_claims_address_chain ON claims(address, chain)`);
+  saveDatabase();
   console.log('Database migration completed');
 }
 
-db.exec(`CREATE TABLE IF NOT EXISTS claims (
+db.run(`CREATE TABLE IF NOT EXISTS claims (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   address TEXT NOT NULL,
   chain TEXT NOT NULL DEFAULT 'bsc',
@@ -32,10 +48,12 @@ db.exec(`CREATE TABLE IF NOT EXISTS claims (
   status TEXT NOT NULL,
   failure_reason TEXT,
   ip TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_claims_address_chain ON claims(address, chain);
-CREATE INDEX IF NOT EXISTS idx_claims_next_allowed ON claims(next_allowed_at);
-`);
+)`);
+db.run(`CREATE INDEX IF NOT EXISTS idx_claims_address_chain ON claims(address, chain)`);
+db.run(`CREATE INDEX IF NOT EXISTS idx_claims_next_allowed ON claims(next_allowed_at)`);
+saveDatabase();
+
+export { db };
 
 export interface ClaimRow {
   id: number;
@@ -52,11 +70,26 @@ export interface ClaimRow {
 
 export function getLastSuccess(address: string, chain: string = 'bsc'): ClaimRow | undefined {
   const stmt = db.prepare(`SELECT * FROM claims WHERE address = ? AND chain = ? AND status = 'SUCCESS' ORDER BY claimed_at DESC LIMIT 1`);
-  return stmt.get(address, chain) as ClaimRow | undefined;
+  stmt.bind([address, chain]);
+  if (stmt.step()) {
+    const row = stmt.getAsObject() as unknown as ClaimRow;
+    stmt.free();
+    return row;
+  }
+  stmt.free();
+  return undefined;
 }
 
 export function insertClaim(record: Omit<ClaimRow, 'id'>): number {
-  const stmt = db.prepare(`INSERT INTO claims(address, chain, tx_hash, amount, claimed_at, next_allowed_at, status, failure_reason, ip) VALUES(@address, @chain, @tx_hash, @amount, @claimed_at, @next_allowed_at, @status, @failure_reason, @ip)`);
-  const info = stmt.run(record);
-  return info.lastInsertRowid as number;
+  const stmt = db.prepare(`INSERT INTO claims(address, chain, tx_hash, amount, claimed_at, next_allowed_at, status, failure_reason, ip) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  stmt.run([record.address, record.chain, record.tx_hash, record.amount, record.claimed_at, record.next_allowed_at, record.status, record.failure_reason ?? null, record.ip ?? null]);
+  stmt.free();
+  saveDatabase();
+  
+  // Get last insert rowid
+  const lastIdStmt = db.prepare(`SELECT last_insert_rowid() as id`);
+  lastIdStmt.step();
+  const result = lastIdStmt.getAsObject() as { id: number };
+  lastIdStmt.free();
+  return result.id;
 }
