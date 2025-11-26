@@ -3,6 +3,7 @@ import { normalizeAddress } from '../utils/address.js';
 import { now, hours } from '../utils/time.js';
 import { config, ChainConfig } from '../config.js';
 import { sendTokens } from './txSender.js';
+import { sendTokensEth } from './ethTxSender.js';
 import type { ClaimRecord } from '../models/ClaimRecord.js';
 
 interface ClaimResult {
@@ -11,18 +12,26 @@ interface ClaimResult {
   remainingMs?: number;
 }
 
-const inFlight = new Map<string, Promise<ClaimResult>>();
+const inFlightBsc = new Map<string, Promise<ClaimResult>>();
+const inFlightEth = new Map<string, Promise<ClaimResult>>();
 
 export async function claim(addressRaw: string, ip?: string): Promise<ClaimResult> {
   const addr = normalizeAddress(addressRaw);
-  if (inFlight.has(addr)) return inFlight.get(addr)!; // de-dupe concurrent
-  const p = doClaim(addr, ip, config.bsc).finally(() => { inFlight.delete(addr); });
-  inFlight.set(addr, p);
+  if (inFlightBsc.has(addr)) return inFlightBsc.get(addr)!; // de-dupe concurrent
+  const p = doClaim(addr, ip, config.bsc, 'bsc').finally(() => { inFlightBsc.delete(addr); });
+  inFlightBsc.set(addr, p);
   return p;
 }
 
-async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig): Promise<ClaimResult> {
-  const chainType = 'bsc';
+export async function claimEth(addressRaw: string, ip?: string): Promise<ClaimResult> {
+  const addr = normalizeAddress(addressRaw);
+  if (inFlightEth.has(addr)) return inFlightEth.get(addr)!; // de-dupe concurrent
+  const p = doClaim(addr, ip, config.eth, 'eth').finally(() => { inFlightEth.delete(addr); });
+  inFlightEth.set(addr, p);
+  return p;
+}
+
+async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig, chainType: 'bsc' | 'eth'): Promise<ClaimResult> {
   const last = getLastSuccess(address, chainType);
   const nowTs = now();
   if (last && last.next_allowed_at > nowTs) {
@@ -30,7 +39,9 @@ async function doClaim(address: string, ip: string | undefined, chainConfig: Cha
   }
   const nextAllowed = nowTs + hours(chainConfig.cooldownHours);
   try {
-    const txHash = await sendTokens(address as any, chainConfig.claimAmount);
+    const txHash = chainType === 'bsc'
+      ? await sendTokens(address as any, chainConfig.claimAmount)
+      : await sendTokensEth(address as any, chainConfig.claimAmount);
     insertClaim({
       address,
       chain: chainType,

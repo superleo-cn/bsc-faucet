@@ -4,11 +4,13 @@ import { fileURLToPath } from 'node:url';
 import pino from 'pino';
 import { config } from './config.js';
 import { claimRouter } from './routes/claim.js';
+import { ethClaimRouter } from './routes/eth-claim.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { ipRateLimit } from './middlewares/rateLimit.js';
 import { register, collectDefaultMetrics } from 'prom-client';
 import { getChainId } from './services/txSender.js';
-import { getStatus } from './services/statusService.js';
+import { getChainIdEth } from './services/ethTxSender.js';
+import { getStatus, getEthStatus } from './services/statusService.js';
 
 const logger = pino();
 
@@ -28,6 +30,7 @@ app.use(express.json());
 app.use(ipRateLimit);
 
 app.use('/claim', claimRouter);
+app.use('/eth/claim', ethClaimRouter);
 
 app.get('/healthz', async (_req: Request, res: Response) => {
   try {
@@ -38,9 +41,27 @@ app.get('/healthz', async (_req: Request, res: Response) => {
   }
 });
 
+app.get('/eth/healthz', async (_req: Request, res: Response) => {
+  try {
+    const chainId = await getChainIdEth();
+    res.json({ status: 'ok', chainId, chain: 'eth' });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', error: e?.message });
+  }
+});
+
 app.get('/api/status', async (_req: Request, res: Response) => {
   try {
     const status = await getStatus();
+    res.json(status);
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message });
+  }
+});
+
+app.get('/api/eth/status', async (_req: Request, res: Response) => {
+  try {
+    const status = await getEthStatus();
     res.json(status);
   } catch (e: any) {
     res.status(500).json({ error: e?.message });

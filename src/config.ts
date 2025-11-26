@@ -16,6 +16,7 @@ export interface AppConfig {
   rateLimitPerIp: number;
   enableMetrics: boolean;
   bsc: ChainConfig;
+  eth: ChainConfig;
 }
 
 function envInt(name: string, def: number): number {
@@ -37,6 +38,8 @@ function envNumber(name: string, def: number): number {
 // BSC Chain Configuration
 const bscTokenDecimals = envInt('BSC_TOKEN_DECIMALS', 18);
 const bscClaimAmountTokens = envNumber('BSC_CLAIM_AMOUNT_TOKENS', 100);
+const ethTokenDecimals = envInt('ETH_TOKEN_DECIMALS', 18);
+const ethClaimAmountTokens = envNumber('ETH_CLAIM_AMOUNT_TOKENS', 0.01);
 
 export const config: AppConfig = {
   port: envInt('PORT', 8080),
@@ -51,10 +54,24 @@ export const config: AppConfig = {
     tokenDecimals: bscTokenDecimals,
     cooldownHours: envInt('BSC_COOLDOWN_HOURS', 24),
     chainId: envInt('BSC_CHAIN_ID', 97)
+  },
+  eth: {
+    privateKey: process.env.ETH_PRIVATE_KEY as `0x${string}`,
+    rpcUrl: process.env.ETH_RPC_URL || 'https://mainnet.infura.io/v3/YOUR_KEY',
+    tokenContract: process.env.ETH_TOKEN_CONTRACT as `0x${string}` | undefined,
+    claimAmount: BigInt(Math.trunc(ethClaimAmountTokens * 10 ** ethTokenDecimals)),
+    claimAmountTokens: ethClaimAmountTokens,
+    tokenDecimals: ethTokenDecimals,
+    cooldownHours: envInt('ETH_COOLDOWN_HOURS', 24),
+    chainId: envInt('ETH_CHAIN_ID', 1)
   }
 };
 
 if (!config.bsc.privateKey) {
   throw new Error('BSC_PRIVATE_KEY required');
+}
+
+if (!config.eth.privateKey) {
+  throw new Error('ETH_PRIVATE_KEY required');
 }
 

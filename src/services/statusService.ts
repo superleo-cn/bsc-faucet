@@ -1,4 +1,5 @@
 import { publicClient, account } from './txSender.js';
+import { ethPublicClient, ethAccount } from './ethTxSender.js';
 import { config } from '../config.js';
 import { type Address } from 'viem';
 
@@ -45,6 +46,37 @@ export async function getStatus() {
       address: config.bsc.tokenContract,
       balance: tokenBalance?.toString() || null,
       decimals: tokenDecimals ?? config.bsc.tokenDecimals
+    } : null
+  };
+}
+
+export async function getEthStatus() {
+  const [chainId, nativeBalance] = await Promise.all([
+    ethPublicClient.getChainId(),
+    ethPublicClient.getBalance({ address: ethAccount.address })
+  ]);
+
+  let tokenBalance: bigint | null = null;
+  let tokenDecimals: number | null = null;
+  if (config.eth.tokenContract) {
+    try {
+      [tokenBalance, tokenDecimals] = await Promise.all([
+        ethPublicClient.readContract({ address: config.eth.tokenContract as Address, abi: erc20BalanceOf as any, functionName: 'balanceOf', args: [ethAccount.address] }) as Promise<bigint>,
+        ethPublicClient.readContract({ address: config.eth.tokenContract as Address, abi: erc20Decimals as any, functionName: 'decimals', args: [] }) as Promise<number>
+      ]);
+    } catch (e) {
+      // ignore, maybe contract not found
+    }
+  }
+
+  return {
+    chainId,
+    faucetAddress: ethAccount.address,
+    nativeBalance: nativeBalance.toString(),
+    token: config.eth.tokenContract ? {
+      address: config.eth.tokenContract,
+      balance: tokenBalance?.toString() || null,
+      decimals: tokenDecimals ?? config.eth.tokenDecimals
     } : null
   };
 }
