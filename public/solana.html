@@ -28,9 +28,9 @@
     <div id="balanceToken" style="margin-top:.25rem;">SPL Token: 加载中...</div>
     <button id="refreshBtn" type="button" style="margin-top:.5rem;">刷新</button>
   </section>
-  <p>输入你的 Solana 地址领取测试额度（Base58）。每个地址 24 小时只能领取一次。</p>
+  <p>输入你的 Solana 地址领取测试额度（支持 Base58 或 Base64）。每个地址 24 小时只能领取一次。</p>
   <form id="claimForm">
-    <input id="address" type="text" placeholder="Solana 地址" required />
+    <input id="address" type="text" placeholder="Solana 地址（Base58 / Base64）" required />
     <button type="submit">领取 Claim</button>
   </form>
   <div id="status" class="log" hidden></div>
@@ -98,9 +98,16 @@
           const remainSec = Math.round((json.remainingMs || 0) / 1000);
           statusBox.className = 'log error';
           statusBox.textContent = '冷却中, 剩余 ~' + remainSec + ' 秒';
-        } else if (r.status === 400) {
+        } else if (r.status === 400 && json.error === 'invalid_address') {
           statusBox.className = 'log error';
           statusBox.textContent = '地址无效';
+        } else if (r.status === 400 && json.error === 'solana_faucet_insufficient_sol') {
+          statusBox.className = 'log error';
+          const human = json.neededSol ? Number(json.neededSol).toFixed(6) : '未知';
+          statusBox.textContent = 'Faucet SOL 余额不足，至少需要 ~' + human + ' SOL 才能为新地址开通代币账户。';
+        } else if (r.status === 500 && json.error === 'solana_associated_account_failed') {
+          statusBox.className = 'log error';
+          statusBox.textContent = '创建目标地址的代币账户失败，请稍后重试或联系管理员。';
         } else {
           statusBox.className = 'log error';
           statusBox.textContent = '失败: ' + JSON.stringify(json);

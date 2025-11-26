@@ -1,6 +1,6 @@
 import { publicClient, account } from './txSender.js';
 import { ethPublicClient, ethAccount } from './ethTxSender.js';
-import { getSolanaNativeBalance, getSolanaTokenBalance, solanaKeypair } from './solanaTxSender.js';
+import { getSolanaNativeBalance, getSolanaTokenBalance, solanaKeypair, getSolanaTokenDecimals } from './solanaTxSender.js';
 import { config } from '../config.js';
 import { type Address } from 'viem';
 
@@ -88,8 +88,12 @@ export async function getSolanaStatus() {
   ]);
 
   let tokenBalance: bigint | null = null;
+  let tokenDecimals: number | null = null;
   if (config.solana.tokenMint) {
-    tokenBalance = await getSolanaTokenBalance(config.solana.tokenMint, solanaKeypair.publicKey.toBase58());
+    [tokenBalance, tokenDecimals] = await Promise.all([
+      getSolanaTokenBalance(config.solana.tokenMint, solanaKeypair.publicKey.toBase58()),
+      getSolanaTokenDecimals()
+    ]);
   }
 
   return {
@@ -98,7 +102,7 @@ export async function getSolanaStatus() {
     token: config.solana.tokenMint ? {
       address: config.solana.tokenMint,
       balance: tokenBalance?.toString() || null,
-      decimals: config.solana.tokenDecimals
+      decimals: tokenDecimals ?? config.solana.tokenDecimals
     } : null
   };
 }
