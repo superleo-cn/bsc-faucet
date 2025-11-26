@@ -11,12 +11,23 @@ export interface ChainConfig {
   chainId: number;
 }
 
+export interface SolanaConfig {
+  secretKey: string;
+  rpcUrl: string;
+  tokenMint?: string | '';
+  claimAmount: bigint;
+  claimAmountTokens: number;
+  tokenDecimals: number;
+  cooldownHours: number;
+}
+
 export interface AppConfig {
   port: number;
   rateLimitPerIp: number;
   enableMetrics: boolean;
   bsc: ChainConfig;
   eth: ChainConfig;
+  solana: SolanaConfig;
 }
 
 function envInt(name: string, def: number): number {
@@ -40,6 +51,8 @@ const bscTokenDecimals = envInt('BSC_TOKEN_DECIMALS', 18);
 const bscClaimAmountTokens = envNumber('BSC_CLAIM_AMOUNT_TOKENS', 100);
 const ethTokenDecimals = envInt('ETH_TOKEN_DECIMALS', 18);
 const ethClaimAmountTokens = envNumber('ETH_CLAIM_AMOUNT_TOKENS', 0.01);
+const solanaTokenDecimals = envInt('SOLANA_TOKEN_DECIMALS', 9);
+const solanaClaimAmountTokens = envNumber('SOLANA_CLAIM_AMOUNT_TOKENS', 0.1);
 
 export const config: AppConfig = {
   port: envInt('PORT', 8080),
@@ -64,6 +77,15 @@ export const config: AppConfig = {
     tokenDecimals: ethTokenDecimals,
     cooldownHours: envInt('ETH_COOLDOWN_HOURS', 24),
     chainId: envInt('ETH_CHAIN_ID', 1)
+  },
+  solana: {
+    secretKey: process.env.SOLANA_SECRET_KEY || '',
+    rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+    tokenMint: process.env.SOLANA_TOKEN_MINT || '',
+    claimAmount: BigInt(Math.trunc(solanaClaimAmountTokens * 10 ** solanaTokenDecimals)),
+    claimAmountTokens: solanaClaimAmountTokens,
+    tokenDecimals: solanaTokenDecimals,
+    cooldownHours: envInt('SOLANA_COOLDOWN_HOURS', 24)
   }
 };
 
@@ -73,5 +95,9 @@ if (!config.bsc.privateKey) {
 
 if (!config.eth.privateKey) {
   throw new Error('ETH_PRIVATE_KEY required');
+}
+
+if (!config.solana.secretKey) {
+  throw new Error('SOLANA_SECRET_KEY required');
 }
 

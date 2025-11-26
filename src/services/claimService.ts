@@ -1,9 +1,10 @@
 import { getLastSuccess, insertClaim } from '../db/index.js';
-import { normalizeAddress } from '../utils/address.js';
+import { normalizeAddress, normalizeSolanaAddress } from '../utils/address.js';
 import { now, hours } from '../utils/time.js';
-import { config, ChainConfig } from '../config.js';
+import { config, ChainConfig, SolanaConfig } from '../config.js';
 import { sendTokens } from './txSender.js';
 import { sendTokensEth } from './ethTxSender.js';
+import { sendTokensSolana } from './solanaTxSender.js';
 import type { ClaimRecord } from '../models/ClaimRecord.js';
 
 interface ClaimResult {
@@ -14,6 +15,7 @@ interface ClaimResult {
 
 const inFlightBsc = new Map<string, Promise<ClaimResult>>();
 const inFlightEth = new Map<string, Promise<ClaimResult>>();
+const inFlightSolana = new Map<string, Promise<ClaimResult>>();
 
 export async function claim(addressRaw: string, ip?: string): Promise<ClaimResult> {
   const addr = normalizeAddress(addressRaw);
@@ -31,7 +33,15 @@ export async function claimEth(addressRaw: string, ip?: string): Promise<ClaimRe
   return p;
 }
 
-async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig, chainType: 'bsc' | 'eth'): Promise<ClaimResult> {
+export async function claimSolana(addressRaw: string, ip?: string): Promise<ClaimResult> {
+  const addr = normalizeSolanaAddress(addressRaw);
+  if (inFlightSolana.has(addr)) return inFlightSolana.get(addr)!;
+  const p = doClaim(addr, ip, config.solana, 'solana').finally(() => { inFlightSolana.delete(addr); });
+  inFlightSolana.set(addr, p);
+  return p;
+}
+
+async function doClaim(address: string, ip: string | undefined, chainConfig: ChainConfig | SolanaConfig, chainType: 'bsc' | 'eth' | 'solana'): Promise<ClaimResult> {
   const last = getLastSuccess(address, chainType);
   const nowTs = now();
   if (last && last.next_allowed_at > nowTs) {
@@ -39,9 +49,14 @@ async function doClaim(address: string, ip: string | undefined, chainConfig: Cha
   }
   const nextAllowed = nowTs + hours(chainConfig.cooldownHours);
   try {
-    const txHash = chainType === 'bsc'
-      ? await sendTokens(address as any, chainConfig.claimAmount)
-      : await sendTokensEth(address as any, chainConfig.claimAmount);
+    let txHash: string;
+    if (chainType === 'bsc') {
+      txHash = await sendTokens(address as any, chainConfig.claimAmount);
+    } else if (chainType === 'eth') {
+      txHash = await sendTokensEth(address as any, chainConfig.claimAmount);
+    } else {
+      txHash = await sendTokensSolana(address, chainConfig.claimAmount);
+    }
     insertClaim({
       address,
       chain: chainType,

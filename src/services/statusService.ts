@@ -1,5 +1,6 @@
 import { publicClient, account } from './txSender.js';
 import { ethPublicClient, ethAccount } from './ethTxSender.js';
+import { getSolanaNativeBalance, getSolanaTokenBalance, solanaKeypair } from './solanaTxSender.js';
 import { config } from '../config.js';
 import { type Address } from 'viem';
 
@@ -77,6 +78,27 @@ export async function getEthStatus() {
       address: config.eth.tokenContract,
       balance: tokenBalance?.toString() || null,
       decimals: tokenDecimals ?? config.eth.tokenDecimals
+    } : null
+  };
+}
+
+export async function getSolanaStatus() {
+  const [nativeBalance] = await Promise.all([
+    getSolanaNativeBalance()
+  ]);
+
+  let tokenBalance: bigint | null = null;
+  if (config.solana.tokenMint) {
+    tokenBalance = await getSolanaTokenBalance(config.solana.tokenMint, solanaKeypair.publicKey.toBase58());
+  }
+
+  return {
+    faucetAddress: solanaKeypair.publicKey.toBase58(),
+    nativeBalance: nativeBalance.toString(),
+    token: config.solana.tokenMint ? {
+      address: config.solana.tokenMint,
+      balance: tokenBalance?.toString() || null,
+      decimals: config.solana.tokenDecimals
     } : null
   };
 }
