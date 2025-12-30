@@ -1,40 +1,51 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Solana Faucet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; margin: 2rem auto; max-width: 960px; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; }
-    .back-link { display: inline-block; margin-bottom: 1rem; text-decoration: none; color: #007acc; }
-    .back-link:hover { text-decoration: underline; }
-    form { display: flex; gap: .5rem; flex-wrap: wrap; }
-    input[type=text] { flex: 1 1 360px; padding: .6rem; font-size: 1rem; }
-    button { padding: .6rem 1.2rem; font-size: 1rem; cursor: pointer; }
-    .log { margin-top: 1rem; font-family: ui-monospace,monospace; white-space: pre-wrap; background: #1113; padding: .75rem 1rem; border-radius: 6px; }
-    footer { margin-top: 2rem; font-size: .8rem; opacity: .7; }
-    .success { color: #0a0; }
-    .error { color: #c00; }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <a href="/" class="back-link">← 返回网络选择</a>
-  <h1>Solana Faucet</h1>
-  <section id="balances" style="margin:1rem 0;padding:.75rem 1rem;border:1px solid #9993;border-radius:6px;font-size:.9rem;line-height:1.4">
-    <strong>Faucet 余额</strong>
-    <div id="balanceNative">SOL: 加载中...</div>
-    <div id="balanceToken" style="margin-top:.25rem;">SPL Token: 加载中...</div>
-    <button id="refreshBtn" type="button" style="margin-top:.5rem;">刷新</button>
-  </section>
-  <p>输入你的 Solana 地址领取测试额度（支持 Base58 或 Base64）。每个地址 24 小时只能领取一次。</p>
-  <form id="claimForm">
-    <input id="address" type="text" placeholder="Solana 地址（Base58 / Base64）" required />
-    <button type="submit">领取 Claim</button>
-  </form>
-  <div id="status" class="log" hidden></div>
+  <div class="container">
+    <a href="/" class="back-link">← Back to Networks</a>
+    <h1>Solana Faucet</h1>
+    
+    <section class="balance-section">
+      <div class="balance-section-title">Faucet Balance</div>
+      <div class="balance-item">
+        <span class="balance-label">SOL:</span>
+        <span class="balance-value" id="balanceNative">Loading...</span>
+      </div>
+      <div class="balance-item">
+        <span class="balance-label">SPL Token:</span>
+        <span class="balance-value" id="balanceToken">Loading...</span>
+      </div>
+      <button id="refreshBtn" class="refresh-btn">Refresh Balance</button>
+    </section>
+    
+    <p class="description">
+      Enter your Solana address to claim test tokens. Supports both Base58 and Base64 formats. Each address can claim once every 24 hours.
+    </p>
+    
+    <form id="claimForm">
+      <input id="address" type="text" placeholder="Solana address (Base58 / Base64)" required />
+      <button type="submit">Claim Tokens</button>
+    </form>
+    
+    <div id="status" class="status-box"></div>
   <script>
+    const ERROR_MESSAGES = {
+      'invalid_address': 'Invalid Solana address. Please check and try again.',
+      'cooldown': 'You already claimed recently. Please wait.',
+      'insufficient_gas': 'Faucet balance insufficient for transaction fees. Please try again later.',
+      'insufficient_balance': 'Faucet token balance insufficient. Please try again later.',
+      'solana_faucet_insufficient_sol': 'Faucet SOL balance is insufficient to create token account for new addresses.',
+      'solana_associated_account_failed': 'Failed to create token account for your address. Please try again later or contact support.',
+      'internal': 'An unexpected error occurred. Please try again later.',
+      'network_error': 'Network error. Please check your connection and try again.'
+    };
+
     async function loadStatus() {
       try {
         const r = await fetch('/api/solana/status');
@@ -42,41 +53,51 @@
         const data = await r.json();
         const native = BigInt(data.nativeBalance);
         const nativeStr = (Number(native) / 1e9).toFixed(6);
-        document.getElementById('balanceNative').textContent = 'SOL: ' + nativeStr;
+        document.getElementById('balanceNative').textContent = nativeStr + ' SOL';
         if (data.token) {
           if (data.token.balance) {
             const dec = data.token.decimals || 9;
             const bal = BigInt(data.token.balance);
             const human = Number(bal) / 10 ** dec;
-            document.getElementById('balanceToken').textContent = 'Token(' + data.token.address.slice(0,6) + '...' + data.token.address.slice(-4) + '): ' + human.toFixed(4);
+            document.getElementById('balanceToken').textContent = human.toFixed(4) + ' (' + data.token.address + ')';
           } else {
-            document.getElementById('balanceToken').textContent = 'Token: 无余额或读取失败';
+            document.getElementById('balanceToken').textContent = 'No balance or unavailable';
           }
         } else {
-          document.getElementById('balanceToken').textContent = '未配置 SPL 代币';
+          document.getElementById('balanceToken').textContent = 'Not configured';
         }
       } catch (err) {
-        document.getElementById('balanceNative').textContent = 'SOL: 读取失败';
-        document.getElementById('balanceToken').textContent = 'Token: 读取失败';
+        document.getElementById('balanceNative').textContent = 'Failed to load';
+        document.getElementById('balanceToken').textContent = 'Failed to load';
       }
     }
+    
     document.getElementById('refreshBtn').addEventListener('click', loadStatus);
     loadStatus();
     setInterval(loadStatus, 30000);
 
     const form = document.getElementById('claimForm');
     const statusBox = document.getElementById('status');
+
+    function showStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status-box show ' + type;
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const address = document.getElementById('address').value.trim();
-      statusBox.hidden = false;
-      statusBox.textContent = '请求中...';
-      statusBox.className = 'log';
+      showStatus('Processing...', 'info');
+      
       try {
-        const r = await fetch('/solana/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address }) });
+        const r = await fetch('/solana/claim', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ address }) 
+        });
         const json = await r.json();
+        
         if (r.status === 201) {
-          statusBox.className = 'log success';
           const dec = json.decimals || 9;
           let human;
           try {
@@ -90,34 +111,36 @@
               const fracStr = (frac + factor).toString().slice(1).padStart(dec,'0').replace(/0+$/,'');
               human = whole.toString() + '.' + fracStr.slice(0, Math.min(6, fracStr.length));
             }
-          } catch {
-            human = json.amountTokens?.toString() || '?';
+          } catch { 
+            human = json.amountTokens?.toString() || '?'; 
           }
-          statusBox.textContent = '成功: signature=' + json.txHash + '\namount=' + human + ' (原始: ' + json.amount + ')';
+          showStatus('✓ Claim successful!\nAmount: ' + human + '\nSignature: ' + json.txHash, 'success');
         } else if (r.status === 429 && json.error === 'cooldown') {
           const remainSec = Math.round((json.remainingMs || 0) / 1000);
-          statusBox.className = 'log error';
-          statusBox.textContent = '冷却中, 剩余 ~' + remainSec + ' 秒';
-        } else if (r.status === 400 && json.error === 'invalid_address') {
-          statusBox.className = 'log error';
-          statusBox.textContent = '地址无效';
-        } else if (r.status === 400 && json.error === 'solana_faucet_insufficient_sol') {
-          statusBox.className = 'log error';
-          const human = json.neededSol ? Number(json.neededSol).toFixed(6) : '未知';
-          statusBox.textContent = 'Faucet SOL 余额不足，至少需要 ~' + human + ' SOL 才能为新地址开通代币账户。';
-        } else if (r.status === 500 && json.error === 'solana_associated_account_failed') {
-          statusBox.className = 'log error';
-          statusBox.textContent = '创建目标地址的代币账户失败，请稍后重试或联系管理员。';
+          const hours = Math.floor(remainSec / 3600);
+          const mins = Math.floor((remainSec % 3600) / 60);
+          const secs = remainSec % 60;
+          let timeStr = '';
+          if (hours > 0) timeStr += hours + 'h ';
+          if (mins > 0) timeStr += mins + 'm ';
+          timeStr += secs + 's';
+          showStatus('You already claimed recently.\nPlease wait ~' + timeStr + ' before claiming again.', 'error');
         } else {
-          statusBox.className = 'log error';
-          statusBox.textContent = '失败: ' + JSON.stringify(json);
+          const errorCode = json.error || 'internal';
+          const message = ERROR_MESSAGES[errorCode] || ERROR_MESSAGES['internal'];
+          showStatus('✗ ' + message, 'error');
         }
       } catch (err) {
-        statusBox.className = 'log error';
-        statusBox.textContent = '网络错误: ' + err;
+        showStatus('✗ ' + ERROR_MESSAGES['network_error'], 'error');
       }
     });
   </script>
-  <footer>本页面仅用于测试。请勿输入生产私钥。 | <a href="/solana/healthz" target="_blank">Health</a> | <a href="/keygen.html">生成密钥</a></footer>
+  
+  <footer>
+    For testing purposes only. Never enter production private keys. | 
+    <a href="/solana/healthz" target="_blank">Health Check</a> | 
+    <a href="/keygen.html">Generate Keys</a>
+  </footer>
+</div>
 </body>
 </html>

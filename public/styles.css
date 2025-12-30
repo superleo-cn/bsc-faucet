@@ -1,0 +1,358 @@
+/* Professional Dark Theme - Based on Orderbook Design System */
+
+:root {
+  /* Primary Colors */
+  --bg-primary: #0b0e11;
+  --bg-secondary: #1a1d23;
+  --bg-tertiary: #252a33;
+  
+  /* Text Colors */
+  --text-primary: #e0e3eb;
+  --text-secondary: #848e9c;
+  --text-tertiary: #6b738a;
+  
+  /* Status Colors */
+  --success: #0ecb81;
+  --error: #f6465d;
+  --warning: #f9a825;
+  --info: #5b7dff;
+  
+  /* Semantic Backgrounds */
+  --success-bg: rgba(14, 203, 129, 0.12);
+  --error-bg: rgba(246, 70, 93, 0.12);
+  --warning-bg: rgba(249, 168, 37, 0.12);
+  --info-bg: rgba(91, 125, 255, 0.12);
+  
+  /* Border */
+  --border-color: #3a3f48;
+  --border-light: #2a2f38;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  padding: 2rem 1rem;
+}
+
+/* Layout */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Navigation */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  text-decoration: none;
+  color: var(--info);
+  font-size: 0.95rem;
+  transition: opacity 0.2s ease;
+}
+
+.back-link:hover {
+  opacity: 0.8;
+}
+
+/* Headers */
+h1, h2, h3 {
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 1.8rem;
+  color: var(--text-primary);
+}
+
+h2 {
+  font-size: 1.3rem;
+  color: var(--text-secondary);
+}
+
+/* Balance Section */
+.balance-section {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.balance-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.balance-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.95rem;
+}
+
+.balance-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.balance-label {
+  color: var(--text-secondary);
+}
+
+.balance-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.refresh-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  background-color: var(--info);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.refresh-btn:hover {
+  opacity: 0.8;
+}
+
+.refresh-btn:active {
+  opacity: 0.7;
+}
+
+/* Description */
+.description {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin: 1.5rem 0;
+  line-height: 1.6;
+}
+
+/* Form */
+.form-group {
+  margin: 1.5rem 0;
+}
+
+form {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  flex: 1 1 360px;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  border-color: var(--info);
+  background-color: var(--bg-tertiary);
+}
+
+input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Button */
+button {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--info);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Status Box */
+.status-box {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+  display: none;
+}
+
+.status-box.show {
+  display: block;
+}
+
+.status-box.success {
+  background-color: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.status-box.error {
+  background-color: var(--error-bg);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.status-box.info {
+  background-color: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info);
+}
+
+/* Footer */
+footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-light);
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+
+footer a {
+  color: var(--info);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+footer a:hover {
+  opacity: 0.8;
+}
+
+/* Chain Grid - for index.html */
+.chain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.chain-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.chain-card:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--info);
+  transform: translateY(-2px);
+}
+
+.chain-card-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.chain-card-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.chain-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body {
+    padding: 1.5rem 1rem;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  form {
+    flex-direction: column;
+  }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  button {
+    width: 100%;
+  }
+  
+  .chain-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
